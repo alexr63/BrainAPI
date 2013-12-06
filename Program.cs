@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using RestSharp;
 
@@ -34,8 +31,6 @@ namespace BrainAPI
                 request.AddUrlSegment("sid", sid);
                 var productResponse = client.Execute(request);
                 Clipboard.SetText(productResponse.Content);
-
-                Console.WriteLine(productResponse.Content);
 
                 request = new RestRequest("logout/{sid}", Method.POST);
                 request.AddUrlSegment("sid", sid);
