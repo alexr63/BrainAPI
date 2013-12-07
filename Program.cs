@@ -16,25 +16,46 @@ namespace BrainAPI
                 return;
             }
 
-            using (MD5 md5Hash = MD5.Create())
+            var path = Clipboard.GetText();
+            var command = path;
+            if (path.Contains("/"))
+            {
+                var commands = path.Split('/');
+                command = commands[0];
+            }
+
+            try
             {
                 var client = new RestClient("http://api.brain.com.ua");
-                var request = new RestRequest("auth", Method.POST);
-                request.AddParameter("login", "victor@it.lg.ua");
-                request.AddParameter("password", GetMd5Hash(md5Hash, "123456"));
-                IRestResponse<AuthStatus> authResponse = client.Execute<AuthStatus>(request);
-                var sid = authResponse.Data.Result;
+                client.Timeout = 1000;
+                RestRequest request;
 
-                request = new RestRequest("product/product_code/{product_code}/{sid}", Method.GET);
-                var productCode = Clipboard.GetText();
-                request.AddUrlSegment("product_code", productCode); // example U0002149
-                request.AddUrlSegment("sid", sid);
-                var productResponse = client.Execute(request);
-                Clipboard.SetText(productResponse.Content);
-
-                request = new RestRequest("logout/{sid}", Method.POST);
-                request.AddUrlSegment("sid", sid);
-                var logoutResponse = client.Execute(request);
+                if (command == "auth")
+                {
+                    using (MD5 md5Hash = MD5.Create())
+                    {
+                        request = new RestRequest(path, Method.POST);
+                        request.AddParameter("login", "victor@it.lg.ua");
+                        request.AddParameter("password", GetMd5Hash(md5Hash, "123456"));
+                        IRestResponse<AuthStatus> authResponse = client.Execute<AuthStatus>(request);
+                        Clipboard.SetText(authResponse.Data.Result);
+                    }
+                }
+                else if (command == "logout")
+                {
+                    request = new RestRequest(path, Method.POST); // example "logout/{sid}"
+                    var logoutResponse = client.Execute(request);
+                }
+                else
+                {
+                    request = new RestRequest(path, Method.GET); // examples "products/{category_id}/{sid}" "product/product_code/{product_code}/{sid}"
+                    var productResponse = client.Execute(request);
+                    Clipboard.SetText(productResponse.Content);
+                }
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine(exception.Message);
             }
         }
 
