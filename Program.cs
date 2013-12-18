@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Forms;
@@ -16,7 +17,8 @@ namespace BrainAPI
                 return;
             }
 
-            var path = Clipboard.GetText();
+            var parameters = Clipboard.GetText().Split(Environment.NewLine.ToCharArray());
+            var path = parameters[0];
             var command = path;
             if (path.Contains("/"))
             {
@@ -26,17 +28,17 @@ namespace BrainAPI
 
             try
             {
-                var client = new RestClient("http://api.brain.com.ua");
+                var client = new RestClient(Properties.Settings.Default.BaseURL);
                 client.Timeout = 1000;
-                RestRequest request;
+                RestRequest request = null;
 
                 if (command == "auth")
                 {
                     using (MD5 md5Hash = MD5.Create())
                     {
                         request = new RestRequest(path, Method.POST);
-                        request.AddParameter("login", "victor@it.lg.ua");
-                        request.AddParameter("password", GetMd5Hash(md5Hash, "123456"));
+                        request.AddParameter("login", Properties.Settings.Default.Login);
+                        request.AddParameter("password", GetMd5Hash(md5Hash, Properties.Settings.Default.Password));
                         IRestResponse<AuthStatus> authResponse = client.Execute<AuthStatus>(request);
                         Clipboard.SetText(authResponse.Data.Result);
                     }
@@ -45,12 +47,31 @@ namespace BrainAPI
                 {
                     request = new RestRequest(path, Method.POST); // example "logout/{sid}"
                     var logoutResponse = client.Execute(request);
+                    Clipboard.SetText(logoutResponse.Content);
                 }
                 else
                 {
-                    request = new RestRequest(path, Method.GET); // examples "products/{category_id}/{sid}" "product/product_code/{product_code}/{sid}"
-                    var productResponse = client.Execute(request);
-                    Clipboard.SetText(productResponse.Content);
+                    if (parameters.Length > 1)
+                    {
+                        switch (parameters[1])
+                        {
+                            case "GET":
+                                request = new RestRequest(path, Method.GET); // examples "products/{category_id}/{sid}" "product/product_code/{product_code}/{sid}"
+                                break;
+                            case "POST":
+                                request = new RestRequest(path, Method.POST); // examples "order/{sid}"
+                                break;
+                        }
+                    }
+                    if (request != null)
+                    {
+                        if (parameters.Length > 2)
+                        {
+                            request.AddParameter("data", parameters[2]); // examples "[{"productID":"15949","quantity":"12","comment":"thank for service"}, {"productID":"23267","quantity":"1"}]"
+                        }
+                        var productResponse = client.Execute(request);
+                        Clipboard.SetText(productResponse.Content);
+                    }
                 }
             }
             catch (Exception exception)
