@@ -9,6 +9,8 @@ namespace BrainAPI
 {
     internal class Program
     {
+        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         [STAThread()]
         private static void Main(string[] args)
         {
@@ -29,7 +31,8 @@ namespace BrainAPI
             try
             {
                 var client = new RestClient(Properties.Settings.Default.BaseURL);
-                client.Timeout = 1000;
+                client.Timeout = 10000;
+                client.ReadWriteTimeout = 10000;
                 RestRequest request = null;
 
                 if (command == "auth")
@@ -40,7 +43,14 @@ namespace BrainAPI
                         request.AddParameter("login", Properties.Settings.Default.Login);
                         request.AddParameter("password", GetMd5Hash(md5Hash, Properties.Settings.Default.Password));
                         IRestResponse<AuthStatus> authResponse = client.Execute<AuthStatus>(request);
-                        Clipboard.SetText(authResponse.Data.Result);
+                        if (authResponse.ErrorException != null)
+                        {
+                            log.Error(authResponse.ErrorMessage, authResponse.ErrorException);
+                        }
+                        else
+                        {
+                            Clipboard.SetText(authResponse.Data.Result);
+                        }
                     }
                 }
                 else if (command == "logout")
@@ -76,7 +86,7 @@ namespace BrainAPI
             }
             catch (Exception exception)
             {
-                Console.WriteLine(exception.Message);
+                log.Error(exception.Message, exception);
             }
         }
 
