@@ -19,14 +19,9 @@ namespace BrainAPI
                 return;
             }
 
-            var parameters = Clipboard.GetText().Split(Environment.NewLine.ToCharArray());
-            var path = parameters[0];
-            var command = path;
-            if (path.Contains("/"))
-            {
-                var commands = path.Split('/');
-                command = commands[0];
-            }
+            var commandLines = Clipboard.GetText().Split(Environment.NewLine.ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+            var command = commandLines[0];
+            var method = commandLines[1];
 
             try
             {
@@ -39,13 +34,13 @@ namespace BrainAPI
                 {
                     using (MD5 md5Hash = MD5.Create())
                     {
-                        request = new RestRequest(path, Method.POST);
+                        request = new RestRequest(command, Method.POST);
                         request.AddParameter("login", Properties.Settings.Default.Login);
                         request.AddParameter("password", GetMd5Hash(md5Hash, Properties.Settings.Default.Password));
                         IRestResponse<AuthStatus> authResponse = client.Execute<AuthStatus>(request);
                         if (authResponse.ErrorException != null)
                         {
-                            log.Error(authResponse.ErrorMessage, authResponse.ErrorException);
+                            log.Fatal(authResponse.ErrorMessage, authResponse.ErrorException);
                         }
                         else
                         {
@@ -55,38 +50,35 @@ namespace BrainAPI
                 }
                 else if (command == "logout")
                 {
-                    request = new RestRequest(path, Method.POST); // example "logout/{sid}"
+                    var parameters = commandLines[2];
+                    request = new RestRequest(command + parameters, Method.POST); // example "logout/{sid}"
                     var logoutResponse = client.Execute(request);
                     Clipboard.SetText(logoutResponse.Content);
                 }
                 else
                 {
-                    if (parameters.Length > 1)
+                    var parameters = commandLines[2];
+                    switch (method)
                     {
-                        switch (parameters[1])
-                        {
-                            case "GET":
-                                request = new RestRequest(path, Method.GET); // examples "products/{category_id}/{sid}" "product/product_code/{product_code}/{sid}"
-                                break;
-                            case "POST":
-                                request = new RestRequest(path, Method.POST); // examples "order/{sid}"
-                                break;
-                        }
+                        case "GET":
+                            request = new RestRequest(command + parameters, Method.GET); // examples "products/{category_id}/{sid}" "product/product_code/{product_code}/{sid}"
+                            break;
+                        case "POST":
+                            request = new RestRequest(command + parameters, Method.POST); // examples "order/{sid}"
+                            break;
                     }
-                    if (request != null)
+                    if (commandLines.Length > 3)
                     {
-                        if (parameters.Length > 2)
-                        {
-                            request.AddParameter("data", parameters[2]); // examples "[{"productID":"15949","quantity":"12","comment":"thank for service"}, {"productID":"23267","quantity":"1"}]"
-                        }
-                        var productResponse = client.Execute(request);
-                        Clipboard.SetText(productResponse.Content);
+                        var data = commandLines[3];
+                        request.AddParameter("data", data); // examples "[{"productID":"15949","quantity":"12","comment":"thank for service"}, {"productID":"23267","quantity":"1"}]"
                     }
+                    var productResponse = client.Execute(request);
+                    Clipboard.SetText(productResponse.Content);
                 }
             }
             catch (Exception exception)
             {
-                log.Error(exception.Message, exception);
+                log.Fatal(exception.Message, exception);
             }
         }
 
