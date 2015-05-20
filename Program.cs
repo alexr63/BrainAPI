@@ -5,6 +5,8 @@ using System.Text;
 using System.Windows.Forms;
 using RestSharp;
 
+[assembly: log4net.Config.XmlConfigurator(Watch = true)]
+
 namespace BrainAPI
 {
     internal class Program
@@ -14,8 +16,11 @@ namespace BrainAPI
         [STAThread()]
         private static void Main(string[] args)
         {
+            log.Info("App start");
+
             if (!Clipboard.ContainsText())
             {
+                log.Warn("Clipboard text missed");
                 return;
             }
 
@@ -32,6 +37,7 @@ namespace BrainAPI
 
                 if (command == "auth")
                 {
+                    log.Info("Auth start");
                     using (MD5 md5Hash = MD5.Create())
                     {
                         request = new RestRequest(command, Method.POST);
@@ -40,23 +46,27 @@ namespace BrainAPI
                         IRestResponse<AuthStatus> authResponse = client.Execute<AuthStatus>(request);
                         if (authResponse.ErrorException != null)
                         {
-                            log.Fatal(authResponse.ErrorMessage, authResponse.ErrorException);
+                            log.Error(authResponse.ErrorMessage, authResponse.ErrorException);
                         }
                         else
                         {
                             Clipboard.SetText(authResponse.Data.Result);
                         }
                     }
+                    log.Info("Auth start");
                 }
                 else if (command == "logout")
                 {
+                    log.Info("Logout start");
                     var parameters = commandLines[2];
                     request = new RestRequest(command + parameters, Method.POST); // example "logout/{sid}"
                     var logoutResponse = client.Execute(request);
                     Clipboard.SetText(logoutResponse.Content);
+                    log.Info("Logout end");
                 }
                 else
                 {
+                    log.Info("Command start");
                     var parameters = commandLines[2];
                     switch (method)
                     {
@@ -67,18 +77,21 @@ namespace BrainAPI
                             request = new RestRequest(command + parameters, Method.POST); // examples "order/{sid}"
                             break;
                     }
+                    log.Info(command + parameters);
                     if (commandLines.Length > 3)
                     {
                         var data = commandLines[3];
                         request.AddParameter("data", data); // examples "[{"productID":"15949","quantity":"12","comment":"thank for service"}, {"productID":"23267","quantity":"1"}]"
+                        log.Info("Data: " + data);
                     }
                     var productResponse = client.Execute(request);
                     Clipboard.SetText(productResponse.Content);
+                    log.Info("Command end");
                 }
             }
             catch (Exception exception)
             {
-                log.Fatal(exception.Message, exception);
+                log.Error(exception.Message, exception);
             }
         }
 
